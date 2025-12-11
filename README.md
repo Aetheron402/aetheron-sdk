@@ -41,8 +41,7 @@ console.log("Success →", result);
 |--------|-------------|
 | `pay(amount: number)` | Sends USDC to Aetheron treasury (6 decimals) |
 | `createComponent(prompt, options?)` | Pays + generates AI component |
-
-Docs → https://aetheron402.com/docs  
+ 
 Twitter → @Aetheron402  
 Website → https://aetheron402.com
 

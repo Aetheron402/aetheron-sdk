@@ -1,81 +1,114 @@
 # Aetheron SDK
 
-Official SDK for interacting with the Aetheron AI Component Platform on X402.  
-Handles on-chain payments (**$AETH / USDC**) and component generation through a clean, minimal API.
+Official SDK for interacting with the **Aetheron AI Component Platform (X402 Engine)**.  
+Provides streamlined on-chain payments (**USDC / $AETH**) and component generation.
 
-**Solana-native • Fully non-custodial • Production-ready**
+Fully **non‑custodial**, **Solana‑native**, and **production‑ready**.
 
-## Install
+---
+
+## Installation
+
 ```bash
 npm install aetheron-sdk   # coming soon
 ```
 
-Or clone directly:
+Or clone:
+
 ```bash
 git clone https://github.com/Aetheron402/aetheron-sdk
 ```
 
-## Quickstart (wallet-adapter setup)
+---
+
+## Quickstart (React + wallet-adapter)
+
 ```ts
 import { AetheronSDK } from "aetheron-sdk";
 import { Connection, clusterApiUrl } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 
-const wallet = useWallet();               // must be a SignerWalletAdapter
+const wallet = useWallet();                     // must be a SignerWalletAdapter
 const connection = new Connection(clusterApiUrl("mainnet-beta"));
 
 const sdk = new AetheronSDK(wallet, connection);
 
 const result = await sdk.generateComponent(
   "Generate a Solana-themed AI mascot",
-  { amount: 0.5 }
+  { amount: 0.5 }  // USD-equivalent price
 );
 
-console.log("Download URL:", result.download_url);
+console.log(result.download_url);
 ```
 
-## Using raw Phantom (no React)
+---
+
+## Usage: Phantom Provider Only
+
 ```ts
 const connection = new Connection("https://api.mainnet-beta.solana.com");
-const wallet = window.solana; // Phantom injected provider
+const wallet = window.solana; // Phantom provider
 
 const sdk = new AetheronSDK(wallet, connection);
 
 await sdk.generateComponent("Make a pump.fun meme");
 ```
 
-## How It Works
-1. **Request payment instructions** (`/payment/request`)
-2. **User signs pre-built transaction**
-3. **SDK sends & confirms the tx**
-4. **Component is generated and returned**
+---
+
+## How the SDK Works
+
+1. SDK requests payment instructions (`/payment/request`)  
+2. Backend returns a **prebuilt transaction**  
+3. Wallet signs  
+4. SDK broadcasts & confirms  
+5. Backend generates the component  
+6. A **download URL** is returned  
+
+No private keys ever leave the user wallet.  
+No custody. No backend-held balances.
+
+---
 
 ## Features
-- One-line payment + generation flow  
-- Works with Phantom, Backpack, Solflare, wallet-adapter  
-- Fully non-custodial  
-- Includes TypeScript definitions  
-- Supports custom RPC + API endpoints  
-- USDC / $AETH compatible  
+
+- One‑line **payment + generation** workflow  
+- Phantom, Backpack, Solflare, wallet-adapter compatible  
+- Works with **$AETH** or **USDC**  
+- TypeScript-native  
+- Optional custom RPC  
+- Safe, minimal interface  
+
+---
 
 ## API Reference
 
-### Constructor
+### **Constructor**
 ```ts
 new AetheronSDK(wallet, connection, config?)
 ```
 
-### generateComponent()
+---  
+
+### **generateComponent()**
 ```ts
-await sdk.generateComponent(prompt, { amount?: number });
+await sdk.generateComponent(prompt, {
+  amount?: number,
+  format?: "pdf" | "txt" | "docx" | "md" | "html"
+});
 ```
 
-### pay()
+---
+
+### **pay()**
 ```ts
 await sdk.pay(amount);
 ```
 
+---
+
 ## Response Example
+
 ```ts
 {
   download_url: string,
@@ -84,9 +117,14 @@ await sdk.pay(amount);
 }
 ```
 
+---
+
 ## Links
+
 Website → https://aetheron402.com  
 Twitter → https://x.com/Aetheron402  
 Email → team@aetheron402.com  
 
-Built for automation. Powered by X402.
+---
+
+**Automation-ready. Built on X402.**

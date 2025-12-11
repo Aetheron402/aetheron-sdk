@@ -3,15 +3,15 @@ import * as spl from "@solana/spl-token";
 import type { Wallet } from "@solana/wallet-adapter-base";
 
 export interface AetheronConfig {
-  endpoint?: string;           
-  rpcUrl?: string;            
+  endpoint?: string;
 }
 
-export interface AIComponentResult {
+export interface CreateComponentResult {
   download_url: string;
   asset_id: string;
   format: "pdf" | "txt" | "docx" | "html" | "md";
   prompt?: string;
+  engine_version?: string;
 }
 
 export class AetheronSDK {
@@ -22,71 +22,74 @@ export class AetheronSDK {
   private readonly USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
   private readonly PAYMENT_WALLET = "FZtoQTD7MLHvJzxxSPcUaQkXB5yP6qKYBZ8tUV18hHo1";
 
-  constructor(wallet: Wallet, connection: Connection, config: AetheronConfig = {}) {
+  constructor(
+    wallet: Wallet,
+    connection: Connection,
+    config: AetheronConfig = {}
+  ) {
+    if (!wallet || !wallet.publicKey) throw new Error("Wallet not connected");
     this.wallet = wallet;
     this.connection = connection;
     this.api = config.endpoint ?? "https://api.aetheron402.com/v1";
   }
 
-  async pay(amount: number): Promise<string> {
-    if (!this.wallet.publicKey) throw new Error("Wallet not connected");
-
-    const payer = this.wallet.publicKey;
+  async pay(amount: number = 0.5): Promise<string> {
+    const payer = this.wallet.publicKey!;
     const mint = new PublicKey(this.USDC_MINT);
     const receiver = new PublicKey(this.PAYMENT_WALLET);
 
-    const fromTokenAccount = (await spl.getOrCreateAssociatedTokenAccount(
+    const fromATA = (await spl.getOrCreateAssociatedTokenAccount(
       this.connection,
       payer,
       mint,
       payer
     )).address;
 
-    const toTokenAccount = (await spl.getOrCreateAssociatedTokenAccount(
+    const toATA = (await spl.getOrCreateAssociatedTokenAccount(
       this.connection,
       payer,
       mint,
       receiver
     )).address;
 
-    const transferIx = spl.createTransferInstruction(
-      fromTokenAccount,
-      toTokenAccount,
+    const ix = spl.createTransferInstruction(
+      fromATA,
+      toATA,
       payer,
       Math.floor(amount * 1_000_000) // 6 decimals
     );
 
-    const tx = new Transaction().add(transferIx);
+    const tx = new Transaction().add(ix);
     tx.feePayer = payer;
     const { blockhash } = await this.connection.getLatestBlockhash();
     tx.recentBlockhash = blockhash;
 
     const signed = await this.wallet.signTransaction(tx);
-    const signature = await this.connection.sendRawTransaction(signed.serialize());
-    await this.connection.confirmTransaction(signature, "confirmed");
+    const sig = await this.connection.sendRawTransaction(signed.serialize());
+    await this.connection.confirmTransaction(sig, "confirmed");
 
-    return signature;
+    return sig;
   }
 
   async createComponent(
     prompt: string,
     options: { amount?: number } = {}
-  ): Promise<AIComponentResult> {
+  ): Promise<CreateComponentResult> {
     const amount = options.amount ?? 0.5;
-    const signature = await this.pay(amount);
+    const paymentSignature = await this.pay(amount);
 
     const res = await fetch(`${this.api}/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
-        paymentSignature: signature,
+        paymentSignature,
       }),
     });
 
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Aetheron API error: ${res.status} — ${err}`);
+      const text = await res.text();
+      throw new Error(`Aetheron API error ${res.status}: ${text}`);
     }
 
     return res.json();

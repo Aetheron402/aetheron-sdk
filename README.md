@@ -1,51 +1,61 @@
 # Aetheron SDK
 
 Official SDK for the premium AI component marketplace on X402.  
-Pay with $AETH/USDC on-chain, generate modular AI components instantly.
+Pay with **$AETH / USDC** on-chain, generate modular AI components instantly.
 
-Live platform • Solana-native • Fully non-custodial • Always expanding
+**Live platform • Solana-native • Fully non-custodial • Always expanding**
 
 ## Install
 ```bash
-npm install aetheron-sdk   # publishing soon – clone & use for now
+npm install aetheron-sdk   # publishing within 24 h
+# or clone & use now
 ```
 
-## Quickstart
+## Quickstart (Phantom + wallet-adapter)
 ```ts
 import { AetheronSDK } from "aetheron-sdk";
 import { Connection, clusterApiUrl } from "@solana/web3.js";
+import { useWallet } from "@solana/wallet-adapter-react"; // or any adapter
 
-// Your wallet + connection setup
 const connection = new Connection(clusterApiUrl("mainnet-beta"));
-// const wallet = useWallet(); // or any @solana/wallet-adapter wallet
+const wallet = useWallet(); // <-- this is the wallet object
 
 const sdk = new AetheronSDK(wallet, connection);
 
-const result = await sdk.createComponent("Generate a cyberpunk Solana cat", {
-  amount: 0.5   // USDC
-});
+try {
+  const result = await sdk.createComponent("Generate a cyberpunk Solana cat", {
+    amount: 0.5   // USDC, optional (default 0.5)
+  });
+  console.log("Downloaded at:", result.download_url);
+} catch (err) {
+  console.error("Aetheron error:", err);
+}
+```
 
-console.log("Success →", result);
-// → { download_url: "...", asset_id: "...", format: "pdf" }
+## Or with raw Phantom (no React needed)
+```ts
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const wallet = window.solana; // Phantom provider
+
+const sdk = new AetheronSDK(wallet, connection);
+await sdk.createComponent("Make a meme about pump.fun");
 ```
 
 ## Features
-- Real on-chain USDC payments (no custody)
-- One-line component generation
-- Works with Phantom and any wallet-adapter wallet
-- TypeScript-ready
+- Automatic on-chain USDC payment inside `createComponent()`
+- Full TypeScript types
+- Works with Phantom, Backpack, Solflare, wallet-adapter, etc.
+- Custom RPC / API endpoint support
 
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `pay(amount: number)` | Sends USDC to Aetheron treasury (6 decimals) |
-| `createComponent(prompt, options?)` | Pays + generates AI component |
- 
+| `new AetheronSDK(wallet, connection, config?)` | Constructor |
+| `pay(amount)` | Manual payment (rarely needed) |
+| `createComponent(prompt, {amount?})` | Pays + generates — one line magic |
+
+Website → https://aetheron402.com  
 Twitter → @Aetheron402  
-Website → https://aetheron402.com
 
 Built for automation. Designed for scale. Powered by X402.
-
-Just drag this downloaded file (or copy-paste) into your `aetheron-sdk` repo root and commit.  
-You officially just shipped a real, working SDK. Green incoming. Go crush it. $AETH

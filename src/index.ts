@@ -6,63 +6,38 @@ export interface AetheronConfig {
   endpoint?: string;
 }
 
-export interface CreateComponentResult {
-  download_url: string;
-  asset_id: string;
-  format: "pdf" | "txt" | "docx" | "html" | "md";
-  prompt?: string;
-  engine_version?: string;
-}
-
 export class AetheronSDK {
   private api: string;
   private connection: Connection;
   private wallet: Wallet;
 
-  private readonly USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-  private readonly PAYMENT_WALLET = "FZtoQTD7MLHvJzxxSPcUaQkXB5yP6qKYBZ8tUV18hHo1";
+  private readonly USDC_MINT = new PublicKey(
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+  );
 
-  constructor(
-    wallet: Wallet,
-    connection: Connection,
-    config: AetheronConfig = {}
-  ) {
-    if (!wallet || !wallet.publicKey) throw new Error("Wallet not connected");
+  constructor(wallet: Wallet, connection: Connection, config: AetheronConfig = {}) {
+    if (!wallet?.publicKey) throw new Error("Wallet not connected");
+
     this.wallet = wallet;
     this.connection = connection;
     this.api = config.endpoint ?? "https://api.aetheron402.com/v1";
   }
 
-  async pay(amount: number = 0.5): Promise<string> {
-    const payer = this.wallet.publicKey!;
-    const mint = new PublicKey(this.USDC_MINT);
-    const receiver = new PublicKey(this.PAYMENT_WALLET);
+  // Request a payment instruction from backend
+  async requestPayment(amount: number) {
+    const res = await fetch(`${this.api}/payment/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount })
+    });
 
-    const fromATA = (await spl.getOrCreateAssociatedTokenAccount(
-      this.connection,
-      payer,
-      mint,
-      payer
-    )).address;
+    if (!res.ok) throw new Error(`Payment request failed: ${res.status}`);
+    return res.json();
+  }
 
-    const toATA = (await spl.getOrCreateAssociatedTokenAccount(
-      this.connection,
-      payer,
-      mint,
-      receiver
-    )).address;
-
-    const ix = spl.createTransferInstruction(
-      fromATA,
-      toATA,
-      payer,
-      Math.floor(amount * 1_000_000) // 6 decimals
-    );
-
-    const tx = new Transaction().add(ix);
-    tx.feePayer = payer;
-    const { blockhash } = await this.connection.getLatestBlockhash();
-    tx.recentBlockhash = blockhash;
+  async signAndSend(tx: Transaction): Promise<string> {
+    tx.feePayer = this.wallet.publicKey!;
+    tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
 
     const signed = await this.wallet.signTransaction(tx);
     const sig = await this.connection.sendRawTransaction(signed.serialize());
@@ -71,27 +46,24 @@ export class AetheronSDK {
     return sig;
   }
 
-  async createComponent(
-    prompt: string,
-    options: { amount?: number } = {}
-  ): Promise<CreateComponentResult> {
-    const amount = options.amount ?? 0.5;
+  async pay(amount: number): Promise<string> {
+    const { transaction_base64 } = await this.requestPayment(amount);
+    const tx = Transaction.from(Buffer.from(transaction_base64, "base64"));
+
+    return await this.signAndSend(tx);
+  }
+
+  async generateComponent(prompt: string, opts: { amount?: number } = {}) {
+    const amount = opts.amount ?? 0.5;
     const paymentSignature = await this.pay(amount);
 
     const res = await fetch(`${this.api}/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt,
-        paymentSignature,
-      }),
+      body: JSON.stringify({ prompt, paymentSignature })
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Aetheron API error ${res.status}: ${text}`);
-    }
-
+    if (!res.ok) throw new Error(`Generation failed: ${res.status}`);
     return res.json();
   }
 }

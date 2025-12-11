@@ -87,5 +87,6 @@ await sdk.pay(amount);
 ## Links
 Website → https://aetheron402.com  
 Twitter → https://x.com/Aetheron402  
+Email → team@aetheron402.com  
 
 Built for automation. Powered by X402.

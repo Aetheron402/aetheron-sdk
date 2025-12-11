@@ -1,6 +1,6 @@
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
-import type { Wallet } from "@solana/wallet-adapter-base";
+import type { WalletAdapter } from "@solana/wallet-adapter-base";
 
 export interface AetheronConfig {
   endpoint?: string;
@@ -9,14 +9,18 @@ export interface AetheronConfig {
 export class AetheronSDK {
   private api: string;
   private connection: Connection;
-  private wallet: Wallet;
+  private wallet: WalletAdapter;
 
   private readonly USDC_MINT = new PublicKey(
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
   );
 
-  constructor(wallet: Wallet, connection: Connection, config: AetheronConfig = {}) {
-    if (!wallet?.publicKey) throw new Error("Wallet not connected");
+  constructor(
+    wallet: WalletAdapter,
+    connection: Connection,
+    config: AetheronConfig = {}
+  ) {
+    if (!wallet || !wallet.publicKey) throw new Error("Wallet not connected");
 
     this.wallet = wallet;
     this.connection = connection;
@@ -39,10 +43,10 @@ export class AetheronSDK {
     tx.feePayer = this.wallet.publicKey!;
     tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
 
-    const signed = await this.wallet.signTransaction(tx);
+    const signed = await this.wallet.signTransaction!(tx);
     const sig = await this.connection.sendRawTransaction(signed.serialize());
-    await this.connection.confirmTransaction(sig, "confirmed");
 
+    await this.connection.confirmTransaction(sig, "confirmed");
     return sig;
   }
 
@@ -53,7 +57,10 @@ export class AetheronSDK {
     return await this.signAndSend(tx);
   }
 
-  async generateComponent(prompt: string, opts: { amount?: number } = {}) {
+  async generateComponent(
+    prompt: string,
+    opts: { amount?: number } = {}
+  ) {
     const amount = opts.amount ?? 0.5;
     const paymentSignature = await this.pay(amount);
 

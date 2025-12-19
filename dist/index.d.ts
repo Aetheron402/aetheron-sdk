@@ -53,4 +53,8 @@ export declare class AetheronSDK {
         paymentMethod?: "USDC" | "AETH";
         txSig?: string;
     }): Promise<any>;
+    downloadAgent(agentId: string, opts?: {
+        paymentMethod?: "USDC" | "AETH";
+        txSig?: string;
+    }): Promise<Blob>;
 }

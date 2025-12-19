@@ -1,13 +1,17 @@
 {
   "name": "aetheron-sdk",
-  "version": "0.1.0",
-  "description": "Official Aetheron SDK – pay with $AETH/USDC and generate AI components",
+  "version": "0.2.0",
+  "description": "Official Aetheron SDK – X402-aware client for manual on-chain payments and AI component access",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "module": "dist/index.js",
   "files": ["dist"],
   "license": "MIT",
   "keywords": ["aetheron", "x402", "solana", "ai", "payments"],
+
+  "engines": {
+    "node": ">=16"
+  },
 
   "scripts": {
     "build": "tsc"

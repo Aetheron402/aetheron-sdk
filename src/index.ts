@@ -1,77 +1,136 @@
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
-import * as spl from "@solana/spl-token";
+import { Connection } from "@solana/web3.js";
 import type { SignerWalletAdapter } from "@solana/wallet-adapter-base";
 
 export interface AetheronConfig {
   endpoint?: string;
 }
 
+export type PaymentRequiredError = {
+  status: 402;
+  message?: string;
+  paid?: number;
+  remaining?: number;
+  required?: number;
+  currency?: "USDC" | "AETH";
+  component?: string;
+};
+
 export class AetheronSDK {
   private api: string;
-  private connection: Connection;
   private wallet: SignerWalletAdapter;
-
-  private readonly USDC_MINT = new PublicKey(
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-  );
+  private connection: Connection;
 
   constructor(
     wallet: SignerWalletAdapter,
     connection: Connection,
     config: AetheronConfig = {}
   ) {
-    if (!wallet || !wallet.publicKey)
+    if (!wallet || !wallet.publicKey) {
       throw new Error("Wallet not connected");
+    }
 
     this.wallet = wallet;
     this.connection = connection;
-    this.api = config.endpoint ?? "https://api.aetheron402.com/v1";
+    this.api = config.endpoint ?? "https://api.aetheron402.com";
   }
 
-  // Request a payment instruction from backend
-  async requestPayment(amount: number) {
-    const res = await fetch(`${this.api}/payment/request`, {
+  private async post(
+    endpoint: string,
+    payload: any,
+    paymentMethod: "USDC" | "AETH" = "USDC",
+    txSig?: string
+  ): Promise<any> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-USER-WALLET": this.wallet.publicKey!.toBase58(),
+      "X-PAYMENT-METHOD": paymentMethod
+    };
+
+    if (txSig) {
+      headers["X-TX-SIG"] = txSig;
+    }
+
+    const res = await fetch(`${this.api}${endpoint}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount })
+      headers,
+      body: JSON.stringify(payload)
     });
 
-    if (!res.ok) throw new Error(`Payment request failed: ${res.status}`);
+    if (res.status === 402) {
+      throw (await res.json()) as PaymentRequiredError;
+    }
+
+    if (res.status === 409) {
+      throw new Error("Transaction signature already used");
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Request failed (${res.status}): ${text}`);
+    }
+
     return res.json();
   }
 
-  async signAndSend(tx: Transaction): Promise<string> {
-      tx.feePayer = this.wallet.publicKey!;
-      tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
-
-      const signed = await this.wallet.signTransaction(tx);
-
-      const sig = await this.connection.sendRawTransaction(signed.serialize());
-      await this.connection.confirmTransaction(sig, "confirmed");
-      return sig;
+  async callPaidComponent(opts: {
+    endpoint: string;
+    payload: any;
+    paymentMethod?: "USDC" | "AETH";
+    txSig?: string;
+  }) {
+    return this.post(
+      opts.endpoint,
+      opts.payload,
+      opts.paymentMethod ?? "USDC",
+      opts.txSig
+    );
   }
 
-  async pay(amount: number): Promise<string> {
-    const { transaction_base64 } = await this.requestPayment(amount);
-    const tx = Transaction.from(Buffer.from(transaction_base64, "base64"));
-
-    return await this.signAndSend(tx);
-  }
-
-  async generateComponent(
-    prompt: string,
-    opts: { amount?: number } = {}
+  promptOptimizer(
+    payload: { text: string; format?: string },
+    opts?: { paymentMethod?: "USDC" | "AETH"; txSig?: string }
   ) {
-    const amount = opts.amount ?? 0.5;
-    const paymentSignature = await this.pay(amount);
-
-    const res = await fetch(`${this.api}/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, paymentSignature })
+    return this.callPaidComponent({
+      endpoint: "/api/prompt-optimizer",
+      payload,
+      ...opts
     });
+  }
 
-    if (!res.ok) throw new Error(`Generation failed: ${res.status}`);
-    return res.json();
+  codeExplainer(
+    payload: { text: string; format?: string },
+    opts?: { paymentMethod?: "USDC" | "AETH"; txSig?: string }
+  ) {
+    return this.callPaidComponent({
+      endpoint: "/api/code-explainer",
+      payload,
+      ...opts
+    });
+  }
+
+  promptTester(
+    payload: { text: string; format?: string },
+    opts?: { paymentMethod?: "USDC" | "AETH"; txSig?: string }
+  ) {
+    return this.callPaidComponent({
+      endpoint: "/api/prompt-tester",
+      payload,
+      ...opts
+    });
+  }
+
+  contractIntel(
+    payload: {
+      contract_address: string;
+      network: "solana" | "ethereum";
+      format?: string;
+    },
+    opts?: { paymentMethod?: "USDC" | "AETH"; txSig?: string }
+  ) {
+    return this.callPaidComponent({
+      endpoint: "/api/contract-intel",
+      payload,
+      ...opts
+    });
   }
 }

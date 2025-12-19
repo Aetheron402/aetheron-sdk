@@ -133,4 +133,44 @@ export class AetheronSDK {
       ...opts
     });
   }
+
+  async downloadAgent(
+    agentId: string,
+    opts?: {
+      paymentMethod?: "USDC" | "AETH";
+      txSig?: string;
+    }
+  ): Promise<Blob> {
+    const headers: Record<string, string> = {
+      "X-USER-WALLET": this.wallet.publicKey!.toBase58(),
+      "X-PAYMENT-METHOD": opts?.paymentMethod ?? "USDC"
+    };
+
+    if (opts?.txSig) {
+      headers["X-TX-SIG"] = opts.txSig;
+    }
+
+    const res = await fetch(
+      `${this.api}/api/download_agent/${agentId}`,
+      {
+        method: "GET",
+        headers
+      }
+    );
+
+    if (res.status === 402) {
+      throw await res.json();
+    }
+
+    if (res.status === 409) {
+      throw new Error("Transaction signature already used");
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Download failed (${res.status}): ${text}`);
+    }
+
+    return res.blob();
+  }
 }

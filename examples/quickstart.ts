@@ -2,7 +2,8 @@ import { AetheronSDK } from "../src/index";
 import { Connection, clusterApiUrl, Keypair } from "@solana/web3.js";
 import type { SignerWalletAdapter } from "@solana/wallet-adapter-base";
 
-// Mock wallet ONLY provides a publicKey now
+// Mock wallet for demo purposes.
+// This is NOT a real wallet and cannot sign transactions.
 const kp = Keypair.generate();
 
 const mockWallet = {
@@ -23,21 +24,23 @@ async function demo() {
 
     console.log("Queued:", res);
 
-  } catch (e: any) {
-    if (e.status === 402) {
+  } catch (e) {
+    if (sdk.isPaymentRequired(e)) {
+      const info = sdk.getPaymentInfo(e);
       console.log("Payment required");
-      console.log("Send:", e.remaining ?? e.required, e.currency);
+      console.log(
+        "Send:",
+        info?.remaining ?? info?.required,
+        info?.currency
+      );
 
       // In a real app, user sends payment manually.
       // For demo purposes, we just show where txSig goes.
       const fakeTxSig = "PASTE_REAL_TX_SIGNATURE_HERE";
 
-      const retry = await sdk.promptOptimizer(
-        { text: "Generate a Solana meme with Grok", format: "pdf" },
-        { paymentMethod: "USDC", txSig: fakeTxSig }
-      );
-
-      console.log("Queued after payment:", retry);
+      console.log("Retrying with txSig (example only)");
+      // In a real app, this is where the retry would happen:
+      // await sdk.promptOptimizer(payload, { paymentMethod: "USDC", txSig });
     } else {
       throw e;
     }

@@ -26,7 +26,11 @@ export class AetheronSDK {
     config: AetheronConfig = {}
   ) {
     if (!wallet || !wallet.publicKey) {
-      throw new Error("Wallet not connected");
+      const err = new Error(
+      "Wallet not connected. Aetheron SDK is designed to be used inside a browser app with a connected Solana wallet."
+    );
+    (err as any).code = "WALLET_REQUIRED";
+    throw err;
     }
 
     this.wallet = wallet;
@@ -65,19 +69,46 @@ export class AetheronSDK {
     }
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Request failed (${res.status}): ${text}`);
+      let detail: any;
+      try {
+        detail = await res.json();
+      } catch {
+        detail = await res.text();
+      }
+
+      const err = new Error(
+        typeof detail === "string"
+          ? detail
+          : detail?.message || `Request failed (${res.status})`
+      );
+
+      (err as any).status = res.status;
+      (err as any).detail = detail;
+      throw err;
     }
 
     return res.json();
   }
 
-  async callPaidComponent(opts: {
+  isPaymentRequired(error: unknown): error is PaymentRequiredError {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      (error as any).status === 402
+    );
+  }
+
+  getPaymentInfo(error: unknown): PaymentRequiredError | null {
+    if (!this.isPaymentRequired(error)) return null;
+    return error;
+  }
+
+  async callPaidComponent<T>(opts: {
     endpoint: string;
     payload: any;
     paymentMethod?: "USDC" | "AETH";
     txSig?: string;
-  }) {
+  }): Promise<T> {
     return this.post(
       opts.endpoint,
       opts.payload,

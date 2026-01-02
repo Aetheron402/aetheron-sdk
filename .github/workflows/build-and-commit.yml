@@ -6,6 +6,7 @@ on:
 
 jobs:
   build:
+    if: github.actor != 'github-actions'
     runs-on: ubuntu-latest
 
     steps:
@@ -32,7 +33,6 @@ jobs:
           git add dist -f
           git diff --cached --quiet || git commit -m "Auto-build dist"
 
-          git fetch origin main
-          git rebase origin/main
+          git pull --rebase origin main
           git push origin main
 

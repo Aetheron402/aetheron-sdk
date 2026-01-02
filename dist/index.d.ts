@@ -18,33 +18,35 @@ export declare class AetheronSDK {
     private connection;
     constructor(wallet: SignerWalletAdapter, connection: Connection, config?: AetheronConfig);
     private post;
-    callPaidComponent(opts: {
+    isPaymentRequired(error: unknown): error is PaymentRequiredError;
+    getPaymentInfo(error: unknown): PaymentRequiredError | null;
+    callPaidComponent<T>(opts: {
         endpoint: string;
         payload: any;
         paymentMethod?: "USDC" | "AETH";
         txSig?: string;
-    }): Promise<any>;
+    }): Promise<T>;
     promptOptimizer(payload: {
         text: string;
         format?: string;
     }, opts?: {
         paymentMethod?: "USDC" | "AETH";
         txSig?: string;
-    }): Promise<any>;
+    }): Promise<unknown>;
     codeExplainer(payload: {
         text: string;
         format?: string;
     }, opts?: {
         paymentMethod?: "USDC" | "AETH";
         txSig?: string;
-    }): Promise<any>;
+    }): Promise<unknown>;
     promptTester(payload: {
         text: string;
         format?: string;
     }, opts?: {
         paymentMethod?: "USDC" | "AETH";
         txSig?: string;
-    }): Promise<any>;
+    }): Promise<unknown>;
     contractIntel(payload: {
         contract_address: string;
         network: "solana" | "ethereum";
@@ -52,7 +54,7 @@ export declare class AetheronSDK {
     }, opts?: {
         paymentMethod?: "USDC" | "AETH";
         txSig?: string;
-    }): Promise<any>;
+    }): Promise<unknown>;
     downloadAgent(agentId: string, opts?: {
         paymentMethod?: "USDC" | "AETH";
         txSig?: string;

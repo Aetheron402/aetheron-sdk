@@ -4,7 +4,9 @@ exports.AetheronSDK = void 0;
 class AetheronSDK {
     constructor(wallet, connection, config = {}) {
         if (!wallet || !wallet.publicKey) {
-            throw new Error("Wallet not connected");
+            const err = new Error("Wallet not connected. Aetheron SDK is designed to be used inside a browser app with a connected Solana wallet.");
+            err.code = "WALLET_REQUIRED";
+            throw err;
         }
         this.wallet = wallet;
         this.connection = connection;
@@ -31,10 +33,31 @@ class AetheronSDK {
             throw new Error("Transaction signature already used");
         }
         if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`Request failed (${res.status}): ${text}`);
+            let detail;
+            try {
+                detail = await res.json();
+            }
+            catch {
+                detail = await res.text();
+            }
+            const err = new Error(typeof detail === "string"
+                ? detail
+                : detail?.message || `Request failed (${res.status})`);
+            err.status = res.status;
+            err.detail = detail;
+            throw err;
         }
         return res.json();
+    }
+    isPaymentRequired(error) {
+        return (typeof error === "object" &&
+            error !== null &&
+            error.status === 402);
+    }
+    getPaymentInfo(error) {
+        if (!this.isPaymentRequired(error))
+            return null;
+        return error;
     }
     async callPaidComponent(opts) {
         return this.post(opts.endpoint, opts.payload, opts.paymentMethod ?? "USDC", opts.txSig);
